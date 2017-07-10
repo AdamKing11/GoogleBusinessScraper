@@ -2,7 +2,7 @@ from __future__ import print_function
 
 __author__ = 'Adam King' # http://github.com/AdamKing11
 
-import os, csv, re, math, time, sys
+import sys, os, csv, re, math, time
 
 try:    
     from tqdm import tqdm
@@ -34,8 +34,9 @@ def clean_links(links):
 def google_query(q):
     # hit Google with a query for the bussiness name and extract the top 10 results
     address = 'https://www.google.com//search?q="%s"' % q
+    time.sleep(3)
     r = requests.get(address)    
-    soup = BeautifulSoup(r.text,  'lxml') 
+    soup = BeautifulSoup(r.text,  'lxml')
     links = clean_links(soup.find_all('a'))
     return links
 
@@ -58,6 +59,7 @@ def rank_links(biz_info, links, top_k = 3):
             
         try:
             # download the webpage
+            time.sleep(.7)
             r = requests.get(l, timeout=4)    
             soup = BeautifulSoup(r.text,  'lxml') 
             soup_str = str(soup)
@@ -89,27 +91,38 @@ def chunk(l, n_chunk):
 
 def find_top_links(q, biz, outfile, fieldnames, top_k = 3):
     for b in biz:
-        bname = b['Company Name'].lower()
-        links = google_query(bname)
-        ls = rank_links(b, links)
         try:
+            bname = b['Company Name'].lower()
+            links = google_query(bname)
+            ls = rank_links(b, links)
             b['URL 1'] = ls[0]
             b['URL 2'] = ls[1]
             b['URL 3'] = ls[2]
-        # if we get less than 3 links, oh well...
         except:
             pass
+        # if we get less than 3 links, oh well...
+        # had some problems with dict writer and multithreading so using this **ungly** code
         with open(output_file, 'a') as wf:
-            writer = csv.DictWriter(wf, fieldnames=fieldnames, delimiter ='\t')
-            writer.writerow(b)
+            row = '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (b['Company Name'], b['Address Line 1'],
+                b['Address Line 2'], b['City'], b['Country'], b['URL 1'], b['URL 2'], b['URL 3'])
+            wf.write(row)
+        lines_done = sum(1 for _ in open(outfile))
+        
+        print('%i -- Writing for "%s"' % (lines_done, b['Company Name']))
+        if len(ls) == 0:
+            print('\t\t**No links found for business!!**')
+            sys.exit()
+        if lines_done >= _nb_biz_to_scrape:
+            print('Finished scraping %i businesses.' % _nb_biz_to_scrape)
+            sys.exit()
 
 _q = Queue()
 _fieldnames = ['Company Name', 'Address Line 1', 'Address Line 2', 
             'City', 'Country', 'URL 1', 'URL 2', 'URL 3']
-
+_nb_biz_to_scrape = sum(1 for _ in open('Scrape Assignment Dataset - SearchExport.csv')) - 1
 
 if __name__ == '__main__':
-    nb_thread = 8
+    nb_thread = 4
     output_file = 'scraped.csv'
 
     # clear the file and write new headers
@@ -126,8 +139,9 @@ if __name__ == '__main__':
         thr = threading.Thread(target = find_top_links, args = (_q, b, output_file, _fieldnames))
         thr.daemon = True
         thr.start()
+        # to offset queries so Google doesn't get mad....
+        time.sleep(23)
 
     while True:
         _q.join()
         _q.get()
-   
