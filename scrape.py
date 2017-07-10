@@ -34,7 +34,7 @@ def clean_links(links):
 def google_query(q):
     # hit Google with a query for the bussiness name and extract the top 10 results
     address = 'https://www.google.com//search?q="%s"' % q
-    time.sleep(3)
+    time.sleep(13)
     r = requests.get(address)    
     soup = BeautifulSoup(r.text,  'lxml')
     links = clean_links(soup.find_all('a'))
@@ -131,7 +131,7 @@ if __name__ == '__main__':
         writer.writeheader()
 
     # we'll open a couple threads and do the scraping in parallel
-    print('reading in bussiness names...')
+    print('reading in business names...')
     bz = read_bizlist()
     print('\tusing %i threads to scrape Google...' % nb_thread)
     bz_chunked = chunk(bz, nb_thread)  
@@ -140,7 +140,7 @@ if __name__ == '__main__':
         thr.daemon = True
         thr.start()
         # to offset queries so Google doesn't get mad....
-        time.sleep(23)
+        time.sleep(26)
 
     while True:
         _q.join()
